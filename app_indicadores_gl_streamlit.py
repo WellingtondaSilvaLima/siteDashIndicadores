@@ -6,26 +6,17 @@ import io
 import plotly.io as pio
 import streamlit.components.v1 as components
 
-def botao_download_png(fig, nome_arquivo_png: str, label="Baixar PNG"):
-    # exige o pacote 'kaleido'
-    img_bytes = pio.to_image(fig, format="png", scale=2)  # scale aumenta a qualidade
-    st.download_button(
-        label=f"{label} — {nome_arquivo_png}",
-        data=img_bytes,
-        file_name=nome_arquivo_png,
-        mime="image/png",
-        use_container_width=True
-    )
+ICON_PATH = Path(__file__).parent / "favicon-liliauto.ico"
 
 st.set_page_config(
     page_title="Indicadores - Grupo Linhares",
-    page_icon="📊",
+    page_icon=str(ICON_PATH),
     layout="wide"
 )
 
 # caminhos das logos (troque pelos seus arquivos ou URLs)
 LOGO_ESQ = Path(__file__).parent / "logo_grupo_linhares.png"
-LOGO_DIR = Path(__file__).parent / "liliauto-logo.png"
+LOGO_DIR = Path(__file__).parent / "logo-liliauto.png"
 
 # faixa de cabeçalho com duas logos e o título central
 c1, c2, c3 = st.columns([1, 4, 1])
@@ -145,7 +136,6 @@ fig_dias.update_layout(
     font=dict(color=COLOR_TEXT),
 )
 st.plotly_chart(fig_dias, use_container_width=True)
-botao_download_png(fig_dias, "media_dias_por_desenvolvedor.png")
 
 # === Gráfico 2: Economia (%) por Automação ===
 econ_por_auto = (
@@ -168,7 +158,6 @@ fig_econ.update_layout(
     yaxis_ticksuffix="%"
 )
 st.plotly_chart(fig_econ, use_container_width=True)
-botao_download_png(fig_econ, "economia_por_automacao.png")
 
 # === (Opcional) Gráfico 3: Economia média (%) por Desenvolvedor ===
 econ_dev = (
@@ -192,7 +181,6 @@ fig_econ_dev.update_layout(
     yaxis_ticksuffix="%"
 )
 st.plotly_chart(fig_econ_dev, use_container_width=True)
-botao_download_png(fig_econ_dev, "economia_media_por_desenvolvedor.png")
 
 # === Tabela de dados ===
 st.markdown("### Dados detalhados")
@@ -203,61 +191,6 @@ st.dataframe(
         "Economia (%)": "{:.2f}"
     }),
     use_container_width=True
-)
-
-components.html(
-    """
-    <div style="display:flex;justify-content:flex-end;margin:12px 0;">
-      <button id="btn-pdf" style="
-        background:#0A4D8C;color:#fff;border:none;border-radius:8px;
-        padding:10px 14px;cursor:pointer;font-weight:600;">
-        Baixar PDF da página
-      </button>
-    </div>
-
-    <!-- libs para capturar e gerar PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
-            integrity="sha512-BNa5l1QF3fSCD8VdV6k9wqfC8e0mGQq9Vyk+fD1N8z8w7w3g8v8oJc8C+3b0WQ0fQ3T1o4rcz2c1JmQ3+J9wkw=="
-            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
-            integrity="sha512-YkG3gJqK9i0b9oQ3m4qH4Q0T9Zb0m1f1m0XxV3O1o+Vn3cO2QwK9T9m0o6x3dY0V9pQmWk1Y6m0qYIYwVBsHyg=="
-            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
-    <script>
-      const btn = document.getElementById("btn-pdf");
-      btn?.addEventListener("click", async () => {
-        const { jsPDF } = window.jspdf;
-
-        // captura do corpo inteiro (aumente scale para maior qualidade)
-        const canvas = await html2canvas(document.body, { scale: 2, useCORS: true });
-        const imgData = canvas.toDataURL("image/png");
-
-        const pdf = new jsPDF("p", "mm", "a4");
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-
-        const imgWidth = pageWidth;
-        const imgHeight = canvas.height * imgWidth / canvas.width;
-
-        let heightLeft = imgHeight;
-        let position = 0;
-
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight, "", "FAST");
-        heightLeft -= pageHeight;
-
-        // adiciona páginas se necessário (conteúdo maior que 1 página)
-        while (heightLeft > 0) {
-          position = heightLeft - imgHeight;
-          pdf.addPage();
-          pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight, "", "FAST");
-          heightLeft -= pageHeight;
-        }
-
-        pdf.save("indicadores_grupo_linhares.pdf");
-      });
-    </script>
-    """,
-    height=80,
 )
 
 st.caption("Grupo Linhares · Indicadores de Desenvolvimento • Powered by Streamlit")
