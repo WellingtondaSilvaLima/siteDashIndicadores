@@ -90,9 +90,6 @@ selected_devs = st.sidebar.multiselect("Desenvolvedor", devs, default=devs)
 
 filtered = df[df["Desenvolvedor"].isin(selected_devs)] if selected_devs else df.copy()
 
-# === Título ===
-st.markdown("## INDICADORES DO SETOR DE DESENVOLVIMENTO DO GRUPO LINHARES")
-
 # === KPIs (topo) ===
 col1, col2, col3, col4 = st.columns(4)
 with col1:
