@@ -2,9 +2,8 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 from pathlib import Path
-import io
-import plotly.io as pio
-import streamlit.components.v1 as components
+import plotly.graph_objects as go
+from datetime import timedelta
 
 ICON_PATH = Path(__file__).parent / "favicon-liliauto.ico"
 
@@ -179,11 +178,102 @@ fig_econ_dev.update_layout(
 )
 st.plotly_chart(fig_econ_dev, use_container_width=True)
 
+# --- Cálculo das colunas Manual (h) e Robô (h) ---
+tmp = filtered.copy()
+tmp["Economia_frac"] = pd.to_numeric(tmp["Economia (%)"], errors="coerce") / 100.0
+
+def _manual_h(row):
+    frac = row["Economia_frac"]
+    he = row["Horas Economizadas"]
+    if pd.notna(frac) and frac not in (0, None) and pd.notna(he):
+        return he / frac
+    return None
+
+tmp["Manual (h)"] = tmp.apply(_manual_h, axis=1)
+tmp["Robô (h)"] = tmp["Manual (h)"] - tmp["Horas Economizadas"]
+
+# Ajustes
+tmp["Manual (h)"] = tmp["Manual (h)"].round(4)
+tmp["Robô (h)"] = tmp["Robô (h)"].clip(lower=0).round(4)
+tmp["Economia (%)"] = tmp["Economia (%)"].round(2)
+tmp = tmp.sort_values("Economia (%)", ascending=False)
+
+# Função para converter decimal de horas para hh:mm:ss
+def horas_para_hhmmss(valor_horas):
+    if pd.isna(valor_horas):
+        return ""
+    segundos = int(valor_horas * 3600)
+    return str(timedelta(seconds=segundos))
+
+# --- Gráfico: Manual vs Robô com UM rótulo % ---
+fig_red = go.Figure()
+
+# Barras - Manual
+fig_red.add_bar(
+    name="Manual (h)",
+    x=tmp["Automação"],
+    y=tmp["Manual (h)"],
+    marker_color="#0A4D8C",
+    text=[horas_para_hhmmss(v) for v in tmp["Manual (h)"]],
+    textposition="outside"
+)
+
+# Barras - Robô
+fig_red.add_bar(
+    name="Robô (h)",
+    x=tmp["Automação"],
+    y=tmp["Robô (h)"],
+    marker_color="#81D4FA",
+    text=[horas_para_hhmmss(v) for v in tmp["Robô (h)"]],
+    textposition="outside"
+)
+
+# Rótulo único de porcentagem por automação (acima do maior valor)
+y_top = (tmp[["Manual (h)", "Robô (h)"]].max(axis=1) * 1.08).tolist()
+fig_red.add_trace(go.Scatter(
+    x=tmp["Automação"],
+    y=y_top,
+    mode="text",
+    text=[f"{p:.2f}%" if pd.notna(p) else "" for p in tmp["Economia (%)"]],
+    textfont=dict(color="#0A4D8C", size=12),
+    showlegend=False,
+    hoverinfo="skip"
+))
+
+fig_red.update_layout(
+    barmode="group",
+    title="Redução real de tempo por automação (Manual vs Robô) • % de economia",
+    title_x=0.02,
+    plot_bgcolor="#F9FBFF",
+    paper_bgcolor=COLOR_BG,
+    font=dict(color=COLOR_TEXT),
+    yaxis_title="Horas (decimais)",
+    xaxis_title="Automação",
+    legend_title_text="Tempo",
+    uniformtext_minsize=10,
+    uniformtext_mode="hide",
+    margin=dict(t=70, r=20, b=60, l=60)
+)
+
+st.plotly_chart(fig_red, use_container_width=True)
+
+
 # === Tabela de dados ===
 st.markdown("### Dados detalhados")
+cols_show = ["Automação", "Desenvolvedor", "Dias Desenvolvimento",
+             "Manual (h)", "Robô (h)", "Horas Economizadas", "Economia (%)"]
+
+# se por acaso não houver as colunas novas (edge cases), cai no filtered
+if all(c in tmp.columns for c in cols_show):
+    view = tmp[cols_show].copy()
+else:
+    view = filtered.copy()
+
 st.dataframe(
-    filtered.style.format({
+    view.style.format({
         "Dias Desenvolvimento": "{:.0f}",
+        "Manual (h)": "{:.2f}",
+        "Robô (h)": "{:.2f}",
         "Horas Economizadas": "{:.2f}",
         "Economia (%)": "{:.2f}"
     }),
